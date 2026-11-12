@@ -15,7 +15,14 @@ def _load_unmejorempleo() -> type[BaseScraper]:
     return cast(type[BaseScraper], module.UnMejorEmpleoScraper)
 
 
+def _load_trabajo_org() -> type[BaseScraper]:
+    """Import perezoso del scraper de trabajo.org."""
+    module = importlib.import_module("job_watcher.scrapers.trabajo_org")
+    return cast(type[BaseScraper], module.TrabajoOrgScraper)
+
+
 SCRAPERS: dict[str, Callable[[], type[BaseScraper]]] = {
+    "trabajo_org": _load_trabajo_org,
     "unmejorempleo": _load_unmejorempleo,
 }
 

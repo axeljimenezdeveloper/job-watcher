@@ -24,4 +24,4 @@ profiles:
           - "Margarita"
       portals:
           unmejorempleo: true
-          trabajo_org: false
+          trabajo_org: true
