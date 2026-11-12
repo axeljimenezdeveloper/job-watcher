@@ -44,6 +44,7 @@ class Profile:
     locations_any: list[str] = field(default_factory=list)
     local_locations: list[str] = field(default_factory=list)
     remote_keywords: list[str] = field(default_factory=list)
+    max_age_days: int = 0
     portals: dict[str, bool] = field(default_factory=dict)
 
 
@@ -93,6 +94,7 @@ def load_config(env_file: Path | None = None) -> Config:
             locations_any=p.get("locations_any", []),
             local_locations=p.get("local_locations", []),
             remote_keywords=p.get("remote_keywords", []),
+            max_age_days=p.get("max_age_days", 0),
             portals=p.get("portals", {}),
         )
         for p in profiles_raw

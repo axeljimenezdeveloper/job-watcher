@@ -107,3 +107,32 @@ def test_concurrent_log_scrape_runs(tmp_path: Path) -> None:
         t.join()
     for i in range(5):
         assert db.get_last_scraped(f"portal_{i}") == i
+
+
+def test_log_summary_sent_persists(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    db.log_summary_sent()
+    assert db.was_summary_sent_since(hours=1) is True
+
+
+def test_was_summary_sent_since_none_initially(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    assert db.was_summary_sent_since(hours=20) is False
+
+
+def test_was_summary_sent_since_false_after_window(tmp_path: Path) -> None:
+    import sqlite3
+    from datetime import UTC, datetime, timedelta
+
+    db = JobDatabase(tmp_path / "jobs.db")
+    # Insertar manualmente un resumen viejo (25h atras)
+    old = (datetime.now(UTC) - timedelta(hours=25)).isoformat()
+    with sqlite3.connect(tmp_path / "jobs.db") as conn:
+        conn.execute("INSERT INTO summary_log (sent_at) VALUES (?)", (old,))
+    assert db.was_summary_sent_since(hours=20) is False
+
+
+def test_was_summary_sent_since_true_recent(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    db.log_summary_sent()
+    assert db.was_summary_sent_since(hours=20) is True

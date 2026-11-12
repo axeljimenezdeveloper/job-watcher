@@ -156,3 +156,36 @@ def test_presencial_from_other_state_fails() -> None:
         raw_text="Trabajo presencial en oficina.",
     )
     assert ProfileFilter(profile).matches(offer) is False
+
+
+def test_max_age_filters_old_offers() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    profile = _profile(max_age_days=7)
+    old_date = datetime.now(UTC) - timedelta(days=10)
+    offer = _offer(published_at=old_date)
+    assert ProfileFilter(profile).matches(offer) is False
+
+
+def test_max_age_allows_recent() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    profile = _profile(max_age_days=7)
+    recent = datetime.now(UTC) - timedelta(days=2)
+    offer = _offer(published_at=recent)
+    assert ProfileFilter(profile).matches(offer) is True
+
+
+def test_max_age_allows_none_date() -> None:
+    profile = _profile(max_age_days=7)
+    offer = _offer(published_at=None)
+    assert ProfileFilter(profile).matches(offer) is True
+
+
+def test_max_age_disabled_allows_old() -> None:
+    from datetime import UTC, datetime, timedelta
+
+    profile = _profile(max_age_days=0)
+    old = datetime.now(UTC) - timedelta(days=30)
+    offer = _offer(published_at=old)
+    assert ProfileFilter(profile).matches(offer) is True

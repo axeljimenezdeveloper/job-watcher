@@ -144,3 +144,55 @@ def test_pipeline_scrapes_each_portal_once(monkeypatch: pytest.MonkeyPatch, tmp_
     # Aunque hay 2 perfiles activos sobre unmejorempleo,
     # el scraper solo se instancia una vez (cache).
     assert fake_scraper_cls.call_count == 1
+
+
+def test_pipeline_sends_daily_summary_if_no_matches(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config = _config(tmp_path)
+    _, fake_notifier = _setup_mocks(monkeypatch, [_offer("1", title="Camarera")])
+
+    stats = p.run_pipeline(config)
+
+    assert stats.notified == 0
+    assert fake_notifier.send.call_count == 1
+    text = fake_notifier.send.call_args[0][0]
+    assert "Sin ofertas nuevas" in text
+
+
+def test_pipeline_no_daily_summary_if_recently_sent(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    config = _config(tmp_path)
+    _, fake_notifier = _setup_mocks(monkeypatch, [_offer("1", title="Camarera")])
+
+    p.run_pipeline(config)
+    assert fake_notifier.send.call_count == 1
+
+    p.run_pipeline(config)
+    assert fake_notifier.send.call_count == 1
+
+
+def test_pipeline_no_summary_when_notified(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    config = _config(tmp_path)
+    _, fake_notifier = _setup_mocks(monkeypatch, [_offer("1")])
+
+    stats = p.run_pipeline(config)
+
+    assert stats.notified == 1
+    assert fake_notifier.send.call_count == 1
+    text = fake_notifier.send.call_args[0][0]
+    assert "Sin ofertas nuevas" not in text
+
+
+def test_format_offer_includes_profile_emoji() -> None:
+    offer = _offer("1", title="Frontend Developer Sr")
+    text = p.format_offer(offer, "Frontend Developer (React/TS/RN)")
+    assert "💻" in text
+    assert offer.title in text
+
+
+def test_format_offer_includes_remote_badge() -> None:
+    offer = _offer("1", title="Dev remoto")
+    text = p.format_offer(offer, "QA Engineer / Tester")
+    assert "🏠 Remoto" in text

@@ -39,6 +39,7 @@ profiles:
           - "full remote"
           - "100% remoto"
           - "trabajo remoto"
+      max_age_days: 7
       portals:
           buscojobs: true
           computrabajo: true
@@ -76,6 +77,7 @@ profiles:
           - "teletrabajo"
           - "full remote"
           - "100% remoto"
+      max_age_days: 7
       portals:
           buscojobs: true
           computrabajo: true
@@ -114,6 +116,7 @@ profiles:
           - "remote"
           - "home office"
           - "teletrabajo"
+      max_age_days: 7
       portals:
           buscojobs: true
           computrabajo: true
@@ -153,6 +156,7 @@ profiles:
           - "remote"
           - "home office"
           - "teletrabajo"
+      max_age_days: 7
       portals:
           buscojobs: true
           computrabajo: true

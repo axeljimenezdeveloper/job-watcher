@@ -32,6 +32,11 @@ CREATE TABLE IF NOT EXISTS scrape_runs (
     run_at        TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_scrape_runs_portal_time ON scrape_runs(portal, run_at);
+CREATE TABLE IF NOT EXISTS summary_log (
+    id      INTEGER PRIMARY KEY AUTOINCREMENT,
+    sent_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_summary_log_sent_at ON summary_log(sent_at);
 """
 
 
@@ -71,15 +76,15 @@ class JobDatabase:
         with self._write_lock, self._connect() as conn:
             conn.execute(
                 """
-                    INSERT INTO jobs (fingerprint, portal, title, company, location,
-                                      url, external_id, published_at, raw_text, discovered_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    ON CONFLICT(fingerprint) DO UPDATE SET
-                        title = excluded.title,
-                        company = excluded.company,
-                        location = excluded.location,
-                        url = excluded.url
-                    """,
+                INSERT INTO jobs (fingerprint, portal, title, company, location,
+                                  url, external_id, published_at, raw_text, discovered_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(fingerprint) DO UPDATE SET
+                    title = excluded.title,
+                    company = excluded.company,
+                    location = excluded.location,
+                    url = excluded.url
+                """,
                 (
                     offer.fingerprint,
                     offer.portal,
@@ -120,10 +125,7 @@ class JobDatabase:
             )
 
     def get_scrape_baseline(self, portal: str, days: int = 7) -> tuple[int, float] | None:
-        """Promedio de scraped_count en los ultimos N dias.
-
-        Retorna None si hay menos de 2 runs (no hay suficiente historial).
-        """
+        """Promedio de scraped_count en los ultimos N dias."""
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._connect() as conn:
             rows = conn.execute(
@@ -143,3 +145,22 @@ class JobDatabase:
                 (portal,),
             ).fetchone()
         return int(row[0]) if row else None
+
+    def log_summary_sent(self) -> None:
+        """Registra que se envio un resumen diario."""
+        now = datetime.now(UTC).isoformat()
+        with self._write_lock, self._connect() as conn:
+            conn.execute(
+                "INSERT INTO summary_log (sent_at) VALUES (?)",
+                (now,),
+            )
+
+    def was_summary_sent_since(self, hours: int) -> bool:
+        """True si se envio un resumen en las ultimas N horas."""
+        cutoff = (datetime.now(UTC) - timedelta(hours=hours)).isoformat()
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM summary_log WHERE sent_at >= ? LIMIT 1",
+                (cutoff,),
+            ).fetchone()
+        return row is not None
