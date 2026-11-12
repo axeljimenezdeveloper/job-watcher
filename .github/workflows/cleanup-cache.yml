@@ -1,0 +1,27 @@
+name: Cleanup old caches
+
+on:
+  schedule:
+    - cron: "0 3 * * 1"  # lunes 3am UTC
+  workflow_dispatch: {}
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Delete job-watcher caches older than 7 days
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh cache list --limit 200 --json id,createdAt,key \
+            --jq '.[] | select(.key | startswith("jobs-db-")) | select((now - (.createdAt | fromdateiso8601)) > 604800) | .id' \
+            | while read id; do
+            echo "Deleting cache $id"
+            gh cache delete "$id" --confirm || true
+          done

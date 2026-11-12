@@ -83,7 +83,7 @@ def test_run_fetches_and_parses(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_response.text = _load_fixture()
     mock_response.raise_for_status.return_value = None
     mock_get = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("job_watcher.scrapers.base.requests.get", mock_get)
+    monkeypatch.setattr("requests.Session.get", mock_get)
 
     offers = TrabajosDiariosScraper().run("")
     assert len(offers) == 2

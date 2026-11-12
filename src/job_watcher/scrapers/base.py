@@ -26,15 +26,13 @@ class BaseScraper(ABC):
     ) -> None:
         self._timeout = timeout_seconds
         self._user_agent = user_agent or "job-watcher/0.1"
+        self._session = requests.Session()
+        self._session.headers.update({"User-Agent": self._user_agent})
 
     def fetch(self, url: str) -> str:
         """Descarga el HTML de url. Puede lanzar requests.RequestException."""
         logger.debug("[{}] fetching {}", self.portal, url)
-        response = requests.get(
-            url,
-            timeout=self._timeout,
-            headers={"User-Agent": self._user_agent},
-        )
+        response = self._session.get(url, timeout=self._timeout)
         response.raise_for_status()
         return response.text
 

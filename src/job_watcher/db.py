@@ -8,6 +8,8 @@ import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from loguru import logger
+
 from job_watcher.filters import normalize
 from job_watcher.models import JobOffer
 
@@ -73,6 +75,22 @@ class JobDatabase:
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
             self._migrate(conn)
+            self._prune(conn)
+
+    @staticmethod
+    def _prune(conn: sqlite3.Connection, days: int = 90) -> None:
+        """Borra ofertas mas antiguas que N dias para evitar crecimiento indefinido."""
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        cur = conn.execute(
+            "DELETE FROM jobs WHERE discovered_at < ?",
+            (cutoff,),
+        )
+        if cur.rowcount > 0:
+            logger.info(
+                "[db] podadas {} ofertas con mas de {} dias",
+                cur.rowcount,
+                days,
+            )
 
     @staticmethod
     def _migrate(conn: sqlite3.Connection) -> None:
@@ -82,7 +100,6 @@ class JobDatabase:
             conn.execute("ALTER TABLE jobs ADD COLUMN title_normalized TEXT")
         if "company_normalized" not in cols:
             conn.execute("ALTER TABLE jobs ADD COLUMN company_normalized TEXT")
-        # Backfill para filas existentes sin normalizar
         pending = conn.execute(
             "SELECT fingerprint, title, company FROM jobs "
             "WHERE title_normalized IS NULL OR company_normalized IS NULL"

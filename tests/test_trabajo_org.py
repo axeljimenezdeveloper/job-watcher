@@ -74,7 +74,7 @@ def test_run_fetches_first_page_and_dedupes(monkeypatch: pytest.MonkeyPatch) -> 
     mock_response.text = _load_fixture()
     mock_response.raise_for_status.return_value = None
     mock_get = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("job_watcher.scrapers.base.requests.get", mock_get)
+    monkeypatch.setattr("requests.Session.get", mock_get)
     monkeypatch.setattr(TrabajoOrgScraper, "_extract_total", staticmethod(lambda soup: 20))
 
     offers = TrabajoOrgScraper().run("")
@@ -88,7 +88,7 @@ def test_run_paginates_when_total_is_large(monkeypatch: pytest.MonkeyPatch) -> N
     mock_response.text = _load_fixture()
     mock_response.raise_for_status.return_value = None
     mock_get = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("job_watcher.scrapers.base.requests.get", mock_get)
+    monkeypatch.setattr("requests.Session.get", mock_get)
 
     offers = TrabajoOrgScraper(max_pages=10).run("")
     # 5 paginas pero mismo fixture en todas -> 3 ofertas unicas

@@ -244,6 +244,7 @@ def test_find_recent_duplicate_skips_confidencial(tmp_path: Path) -> None:
 
 def test_migrate_adds_columns_to_existing_db(tmp_path: Path) -> None:
     import sqlite3
+    from datetime import UTC, datetime
 
     path = tmp_path / "old.db"
     with sqlite3.connect(path) as conn:
@@ -266,7 +267,7 @@ def test_migrate_adds_columns_to_existing_db(tmp_path: Path) -> None:
                 "e",
                 None,
                 "",
-                "2026-01-01",
+                datetime.now(UTC).isoformat(),
                 None,
             ),
         )

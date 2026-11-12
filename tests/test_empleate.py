@@ -104,7 +104,7 @@ def test_run_fetches_first_page_and_dedupes(
     mock_response.text = _load_fixture()
     mock_response.raise_for_status.return_value = None
     mock_get = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("job_watcher.scrapers.base.requests.get", mock_get)
+    monkeypatch.setattr("requests.Session.get", mock_get)
 
     url = "https://www.empleate.com/venezuela/ofertas/empleos_encontrados/1/trabajos-en-venezuela-en-el-estado-nueva_esparta"
     offers = EmpleateScraper().run(url)

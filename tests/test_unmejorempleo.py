@@ -63,7 +63,7 @@ def test_run_fetches_first_page_and_dedupes(monkeypatch: pytest.MonkeyPatch) -> 
     mock_response.text = _load_fixture()
     mock_response.raise_for_status.return_value = None
     monkeypatch.setattr(
-        "job_watcher.scrapers.base.requests.get",
+        "requests.Session.get",
         MagicMock(return_value=mock_response),
     )
 

@@ -93,7 +93,7 @@ def test_run_fetches_first_page(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_response.text = _load_fixture()
     mock_response.raise_for_status.return_value = None
     monkeypatch.setattr(
-        "job_watcher.scrapers.base.requests.get",
+        "requests.Session.get",
         MagicMock(return_value=mock_response),
     )
 
@@ -110,7 +110,7 @@ def test_run_paginates_when_total_is_large(monkeypatch: pytest.MonkeyPatch) -> N
     mock_response.text = big_fixture
     mock_response.raise_for_status.return_value = None
     mock_get = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("job_watcher.scrapers.base.requests.get", mock_get)
+    monkeypatch.setattr("requests.Session.get", mock_get)
 
     url = "https://www.mipleo.com.ve/ofertas-de-trabajo/empleos-distrito-capital"
     offers = MipleoScraper(max_pages=5).run(url)

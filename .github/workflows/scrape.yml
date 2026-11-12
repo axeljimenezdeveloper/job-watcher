@@ -11,8 +11,8 @@ concurrency:
 
 jobs:
   scrape:
-    runs-on: ubuntu-24.04   # pin explicito (evita migracion Ubuntu 26)
-    timeout-minutes: 10
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
 
     steps:
       - uses: actions/checkout@v4
@@ -31,18 +31,12 @@ jobs:
         id: cache-restore
         uses: actions/cache/restore@v4
         with:
-          path: data/jobs.db
+          path: |
+            data/jobs.db
+            data/jobs.db-wal
+            data/jobs.db-shm
           key: jobs-db-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: jobs-db-
-
-      - name: Restore job database from artifact (fallback)
-        if: steps.cache-restore.outputs.cache-hit != 'true'
-        uses: actions/download-artifact@v4
-        with:
-          pattern: jobs-db-*
-          merge-multiple: true
-          path: data/
-        continue-on-error: true
 
       - name: Create .env from secrets
         run: |
@@ -52,11 +46,19 @@ jobs:
       - name: Run job watcher
         run: python -m job_watcher
 
+      - name: Checkpoint WAL
+        if: always() && hashFiles('data/jobs.db') != ''
+        run: |
+          python -c "import sqlite3; c = sqlite3.connect('data/jobs.db'); c.execute('PRAGMA wal_checkpoint(TRUNCATE)'); c.close()"
+
       - name: Save job database to cache
         if: always() && hashFiles('data/jobs.db') != ''
         uses: actions/cache/save@v4
         with:
-          path: data/jobs.db
+          path: |
+            data/jobs.db
+            data/jobs.db-wal
+            data/jobs.db-shm
           key: jobs-db-${{ github.run_id }}-${{ github.run_attempt }}
 
       - name: Upload job database as artifact (backup)
@@ -64,7 +66,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: jobs-db-${{ github.run_id }}
-          path: data/jobs.db
+          path: |
+            data/jobs.db
+            data/jobs.db-wal
+            data/jobs.db-shm
           retention-days: 90
 
       - name: Notify on failure

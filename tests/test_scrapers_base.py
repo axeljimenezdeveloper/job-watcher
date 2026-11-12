@@ -40,15 +40,15 @@ def test_fetch_uses_user_agent(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_response.raise_for_status.return_value = None
 
     mock_get = MagicMock(return_value=mock_response)
-    monkeypatch.setattr("job_watcher.scrapers.base.requests.get", mock_get)
+    monkeypatch.setattr("requests.Session.get", mock_get)
 
     scraper = _FakeScraper(user_agent="test-ua/1.0")
     html = scraper.fetch("https://example.com")
 
     assert html == "<html>ok</html>"
-    args, kwargs = mock_get.call_args
+    args, _kwargs = mock_get.call_args
     assert args[0] == "https://example.com"
-    assert kwargs["headers"]["User-Agent"] == "test-ua/1.0"
+    assert scraper._session.headers["User-Agent"] == "test-ua/1.0"
 
 
 def test_run_composes_fetch_and_parse(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -56,7 +56,7 @@ def test_run_composes_fetch_and_parse(monkeypatch: pytest.MonkeyPatch) -> None:
     mock_response.text = "<html>jobs here</html>"
     mock_response.raise_for_status.return_value = None
     monkeypatch.setattr(
-        "job_watcher.scrapers.base.requests.get",
+        "requests.Session.get",
         MagicMock(return_value=mock_response),
     )
 
@@ -70,7 +70,7 @@ def test_run_returns_empty_when_no_jobs(monkeypatch: pytest.MonkeyPatch) -> None
     mock_response.text = "no-jobs here"
     mock_response.raise_for_status.return_value = None
     monkeypatch.setattr(
-        "job_watcher.scrapers.base.requests.get",
+        "requests.Session.get",
         MagicMock(return_value=mock_response),
     )
 
