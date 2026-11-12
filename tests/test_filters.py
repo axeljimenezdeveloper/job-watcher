@@ -14,6 +14,8 @@ def _profile(**overrides: object) -> Profile:
         "must_match_any": ["inventario", "logistica"],
         "must_not_match": ["senior", "gerente"],
         "locations_any": ["Nueva Esparta", "Porlamar"],
+        "local_locations": [],
+        "remote_keywords": [],
     }
     defaults.update(overrides)
     return Profile(**defaults)  # type: ignore[arg-type]
@@ -54,10 +56,7 @@ def test_match_case_and_accent_insensitive() -> None:
 
 
 def test_no_keyword_no_match() -> None:
-    offer = _offer(
-        title="Camarera",
-        raw_text="Limpiar habitaciones.",
-    )
+    offer = _offer(title="Camarera", raw_text="Limpiar habitaciones.")
     assert ProfileFilter(_profile()).matches(offer) is False
 
 
@@ -109,3 +108,51 @@ def test_filter_offers_returns_only_matches() -> None:
     result = filter_offers(offers, profile)
     assert len(result) == 1
     assert result[0].external_id == "1"
+
+
+def test_remote_offer_from_other_state_passes() -> None:
+    profile = _profile(
+        must_match_any=["frontend"],
+        must_not_match=[],
+        locations_any=[],
+        local_locations=["Nueva Esparta"],
+        remote_keywords=["remoto", "home office"],
+    )
+    offer = _offer(
+        title="Frontend Developer",
+        location="Caracas, Distrito Capital",
+        raw_text="Trabajo 100% remoto.",
+    )
+    assert ProfileFilter(profile).matches(offer) is True
+
+
+def test_local_offer_passes_without_remote_keyword() -> None:
+    profile = _profile(
+        must_match_any=["frontend"],
+        must_not_match=[],
+        locations_any=[],
+        local_locations=["Nueva Esparta", "Porlamar"],
+        remote_keywords=["remoto"],
+    )
+    offer = _offer(
+        title="Frontend Developer",
+        location="Porlamar, Nueva Esparta",
+        raw_text="Trabajo presencial en oficina.",
+    )
+    assert ProfileFilter(profile).matches(offer) is True
+
+
+def test_presencial_from_other_state_fails() -> None:
+    profile = _profile(
+        must_match_any=["frontend"],
+        must_not_match=[],
+        locations_any=[],
+        local_locations=["Nueva Esparta"],
+        remote_keywords=["remoto", "home office"],
+    )
+    offer = _offer(
+        title="Frontend Developer",
+        location="Valencia, Carabobo",
+        raw_text="Trabajo presencial en oficina.",
+    )
+    assert ProfileFilter(profile).matches(offer) is False

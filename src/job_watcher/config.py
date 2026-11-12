@@ -32,6 +32,7 @@ class ScrapingConfig:
     timeout_seconds: int = 30
     request_delay_seconds: int = 2
     user_agent: str = ""
+    estados: list[str] = field(default_factory=lambda: ["nueva-esparta"])
 
 
 @dataclass(frozen=True)
@@ -41,6 +42,8 @@ class Profile:
     must_match_any: list[str] = field(default_factory=list)
     must_not_match: list[str] = field(default_factory=list)
     locations_any: list[str] = field(default_factory=list)
+    local_locations: list[str] = field(default_factory=list)
+    remote_keywords: list[str] = field(default_factory=list)
     portals: dict[str, bool] = field(default_factory=dict)
 
 
@@ -88,6 +91,8 @@ def load_config(env_file: Path | None = None) -> Config:
             must_match_any=p.get("must_match_any", []),
             must_not_match=p.get("must_not_match", []),
             locations_any=p.get("locations_any", []),
+            local_locations=p.get("local_locations", []),
+            remote_keywords=p.get("remote_keywords", []),
             portals=p.get("portals", {}),
         )
         for p in profiles_raw

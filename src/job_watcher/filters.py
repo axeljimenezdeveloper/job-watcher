@@ -24,31 +24,43 @@ class ProfileFilter:
         self._keywords = [_normalize(k) for k in profile.must_match_any]
         self._exclusions = [_normalize(e) for e in profile.must_not_match]
         self._locations = [_normalize(loc) for loc in profile.locations_any]
+        self._local = [_normalize(loc) for loc in profile.local_locations]
+        self._remote = [_normalize(kw) for kw in profile.remote_keywords]
 
     def _has_exclusion(self, haystack: str) -> bool:
-        """True si alguna exclusion aparece en el haystack."""
         return bool(self._exclusions) and any(exc in haystack for exc in self._exclusions)
 
     def _has_keyword(self, haystack: str) -> bool:
-        """True si hay al menos un keyword (o no hay keywords)."""
         if not self._keywords:
             return True
         return any(kw in haystack for kw in self._keywords)
 
     def _has_location(self, haystack: str) -> bool:
-        """True si hay al menos una ubicacion (o no hay ubicaciones)."""
         if not self._locations:
             return True
         return any(loc in haystack for loc in self._locations)
 
+    def _is_local(self, haystack: str) -> bool:
+        if not self._local:
+            return True
+        return any(loc in haystack for loc in self._local)
+
+    def _has_remote_keyword(self, haystack: str) -> bool:
+        if not self._remote:
+            return True
+        return any(kw in haystack for kw in self._remote)
+
     def matches(self, offer: JobOffer) -> bool:
         """True si la oferta cumple todas las reglas del perfil."""
         haystack = _normalize(f"{offer.title} {offer.raw_text} {offer.location}")
-        return (
-            not self._has_exclusion(haystack)
-            and self._has_keyword(haystack)
-            and self._has_location(haystack)
-        )
+        if self._has_exclusion(haystack):
+            return False
+        if not self._has_keyword(haystack):
+            return False
+        if not self._has_location(haystack):
+            return False
+        # Regla remoto: si NO es local, debe mencionar trabajo remoto
+        return self._is_local(haystack) or self._has_remote_keyword(haystack)
 
 
 def filter_offers(offers: list[JobOffer], profile: Profile) -> list[JobOffer]:

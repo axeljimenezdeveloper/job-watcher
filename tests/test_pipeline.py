@@ -57,6 +57,8 @@ def test_pipeline_notifies_new_matched_offers(
     config = _config(tmp_path)
 
     fake_scraper_instance = MagicMock()
+    fake_scraper_instance.ESTADOS = {"nueva-esparta": "foo"}
+    fake_scraper_instance.BASE_URL = "https://x/"
     fake_scraper_instance.run.return_value = [
         _offer("1"),
         _offer("2", title="Camarera"),
@@ -81,6 +83,8 @@ def test_pipeline_skips_already_known(monkeypatch: pytest.MonkeyPatch, tmp_path:
     config = _config(tmp_path)
 
     fake_scraper_instance = MagicMock()
+    fake_scraper_instance.ESTADOS = {"nueva-esparta": "foo"}
+    fake_scraper_instance.BASE_URL = "https://x/"
     fake_scraper_instance.run.return_value = [_offer("1")]
     fake_scraper_cls = MagicMock(return_value=fake_scraper_instance)
     monkeypatch.setattr(p, "get_scraper", MagicMock(return_value=fake_scraper_cls))
@@ -101,6 +105,8 @@ def test_pipeline_handles_scraper_error(monkeypatch: pytest.MonkeyPatch, tmp_pat
     config = _config(tmp_path)
 
     fake_scraper_instance = MagicMock()
+    fake_scraper_instance.ESTADOS = {"nueva-esparta": "foo"}
+    fake_scraper_instance.BASE_URL = "https://x/"
     fake_scraper_instance.run.side_effect = RuntimeError("boom")
     fake_scraper_cls = MagicMock(return_value=fake_scraper_instance)
     monkeypatch.setattr(p, "get_scraper", MagicMock(return_value=fake_scraper_cls))

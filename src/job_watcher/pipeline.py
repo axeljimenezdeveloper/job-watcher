@@ -11,6 +11,7 @@ from job_watcher.db import JobDatabase
 from job_watcher.filters import filter_offers
 from job_watcher.models import JobOffer
 from job_watcher.notifier import TelegramError, TelegramNotifier
+from job_watcher.scrapers.base import run_multi_estado
 from job_watcher.scrapers.registry import get_scraper
 
 
@@ -93,7 +94,11 @@ def _run_for_profile(
         )
 
         try:
-            offers = scraper.run("")
+            offers = run_multi_estado(
+                scraper,
+                config.scraping.estados,
+                on_error=stats.errors.append,
+            )
         except Exception as exc:
             stats.errors.append(f"{portal_name}: {exc!r}")
             logger.exception("[{}] fallo al scrapear", portal_name)

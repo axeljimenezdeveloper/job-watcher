@@ -27,6 +27,18 @@ profiles:
           - "5 años"
           - "seniority"
       locations_any: []
+      local_locations:
+          - "Nueva Esparta"
+          - "Porlamar"
+          - "Margarita"
+      remote_keywords:
+          - "remoto"
+          - "remote"
+          - "home office"
+          - "teletrabajo"
+          - "full remote"
+          - "100% remoto"
+          - "trabajo remoto"
       portals:
           buscojobs: true
           computrabajo: true
@@ -52,6 +64,17 @@ profiles:
           - "gerente"
           - "director"
       locations_any: []
+      local_locations:
+          - "Nueva Esparta"
+          - "Porlamar"
+          - "Margarita"
+      remote_keywords:
+          - "remoto"
+          - "remote"
+          - "home office"
+          - "teletrabajo"
+          - "full remote"
+          - "100% remoto"
       portals:
           buscojobs: true
           computrabajo: true
@@ -79,12 +102,16 @@ profiles:
           - "senior"
           - "gerente"
           - "director"
-      locations_any:
+      locations_any: []
+      local_locations:
           - "Nueva Esparta"
           - "Porlamar"
           - "Margarita"
+      remote_keywords:
           - "remoto"
           - "remote"
+          - "home office"
+          - "teletrabajo"
       portals:
           buscojobs: true
           computrabajo: true
@@ -113,12 +140,16 @@ profiles:
           - "senior"
           - "gerente"
           - "director"
-      locations_any:
+      locations_any: []
+      local_locations:
           - "Nueva Esparta"
           - "Porlamar"
           - "Margarita"
+      remote_keywords:
           - "remoto"
           - "remote"
+          - "home office"
+          - "teletrabajo"
       portals:
           buscojobs: true
           computrabajo: true
