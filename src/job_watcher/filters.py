@@ -9,8 +9,8 @@ from job_watcher.config import Profile
 from job_watcher.models import JobOffer
 
 
-def _normalize(text: str) -> str:
-    """Lowercase + sin tildes + espacios colapsados."""
+def normalize(text: str) -> str:
+    """Lowercase + sin tildes + espacios colapsados. Publica para reuso."""
     text = text.lower().strip()
     decomposed = unicodedata.normalize("NFD", text)
     without_accents = "".join(c for c in decomposed if unicodedata.category(c) != "Mn")
@@ -22,11 +22,11 @@ class ProfileFilter:
 
     def __init__(self, profile: Profile) -> None:
         self._profile = profile
-        self._keywords = [_normalize(k) for k in profile.must_match_any]
-        self._exclusions = [_normalize(e) for e in profile.must_not_match]
-        self._locations = [_normalize(loc) for loc in profile.locations_any]
-        self._local = [_normalize(loc) for loc in profile.local_locations]
-        self._remote = [_normalize(kw) for kw in profile.remote_keywords]
+        self._keywords = [normalize(k) for k in profile.must_match_any]
+        self._exclusions = [normalize(e) for e in profile.must_not_match]
+        self._locations = [normalize(loc) for loc in profile.locations_any]
+        self._local = [normalize(loc) for loc in profile.local_locations]
+        self._remote = [normalize(kw) for kw in profile.remote_keywords]
         self._max_age_days = profile.max_age_days
 
     def _has_exclusion(self, haystack: str) -> bool:
@@ -53,11 +53,7 @@ class ProfileFilter:
         return any(kw in haystack for kw in self._remote)
 
     def _is_recent_enough(self, offer: JobOffer) -> bool:
-        """True si la oferta es reciente (o no tiene fecha).
-
-        Si max_age_days == 0 el filtro esta deshabilitado.
-        Si published_at es None se acepta (no penalizar ofertas sin fecha).
-        """
+        """True si la oferta es reciente (o no tiene fecha)."""
         if self._max_age_days <= 0:
             return True
         if offer.published_at is None:
@@ -69,14 +65,13 @@ class ProfileFilter:
         """True si la oferta cumple todas las reglas del perfil."""
         if not self._is_recent_enough(offer):
             return False
-        haystack = _normalize(f"{offer.title} {offer.raw_text} {offer.location}")
+        haystack = normalize(f"{offer.title} {offer.raw_text} {offer.location}")
         if self._has_exclusion(haystack):
             return False
         if not self._has_keyword(haystack):
             return False
         if not self._has_location(haystack):
             return False
-        # Regla remoto: si NO es local, debe mencionar trabajo remoto
         return self._is_local(haystack) or self._has_remote_keyword(haystack)
 
 

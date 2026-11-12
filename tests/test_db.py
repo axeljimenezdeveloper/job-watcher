@@ -175,3 +175,115 @@ def test_find_recent_duplicate_not_notified_returns_false(tmp_path: Path) -> Non
     offer = _offer(external_id="1", title="Asistente Admin", company="ACME")
     db.save(offer)  # guardada pero NO notificada
     assert db.find_recent_duplicate("Asistente Admin", "ACME") is False
+
+
+# --- normalize_for_dedup ---
+
+
+def test_normalize_for_dedup_strips_parenthesis() -> None:
+    from job_watcher.db import normalize_for_dedup
+
+    assert normalize_for_dedup("Asistente Administrativo(a)") == "asistente administrativo"
+    assert normalize_for_dedup("Asesor(es)") == "asesor"
+
+
+def test_normalize_for_dedup_strips_legal_suffixes() -> None:
+    from job_watcher.db import normalize_for_dedup
+
+    assert normalize_for_dedup("SERVICIOS DEL FRIO S.A.") == "servicios del frio"
+    assert normalize_for_dedup("ACME C.A.") == "acme"
+    assert normalize_for_dedup("Empresa SRL") == "empresa"
+    assert normalize_for_dedup("Corp LLC") == "corp"
+
+
+def test_normalize_for_dedup_removes_accents_and_case() -> None:
+    from job_watcher.db import normalize_for_dedup
+
+    assert normalize_for_dedup("MECANICO") == "mecanico"
+    assert normalize_for_dedup("Gestion de Inventarios") == "gestion de inventarios"
+    assert normalize_for_dedup("Mecanico") == "mecanico"
+
+
+# --- find_recent_duplicate con normalizacion ---
+
+
+def test_find_recent_duplicate_handles_paren_suffix(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(
+        external_id="1",
+        title="Asistente Administrativo(a)",
+        company="ACME",
+    )
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("Asistente Administrativo", "ACME") is True
+
+
+def test_find_recent_duplicate_handles_legal_suffix(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(
+        external_id="1",
+        title="Asistente Admin",
+        company="ACME S.A.",
+    )
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("Asistente Admin", "ACME") is True
+
+
+def test_find_recent_duplicate_skips_confidencial(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(external_id="1", title="Asistente Admin", company="CONFIDENCIAL")
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("Asistente Admin", "CONFIDENCIAL") is False
+
+
+# --- migracion ---
+
+
+def test_migrate_adds_columns_to_existing_db(tmp_path: Path) -> None:
+    import sqlite3
+
+    path = tmp_path / "old.db"
+    with sqlite3.connect(path) as conn:
+        conn.execute(
+            "CREATE TABLE jobs (fingerprint TEXT PRIMARY KEY, portal TEXT, "
+            "title TEXT, company TEXT, location TEXT, url TEXT, external_id TEXT, "
+            "published_at TEXT, raw_text TEXT, discovered_at TEXT, notified_at TEXT)"
+        )
+        conn.execute(
+            "INSERT INTO jobs (fingerprint, portal, title, company, location, "
+            "url, external_id, published_at, raw_text, discovered_at, notified_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "fp1",
+                "p",
+                "Asistente Administrativo(a)",
+                "ACME S.A.",
+                "l",
+                "u",
+                "e",
+                None,
+                "",
+                "2026-01-01",
+                None,
+            ),
+        )
+
+    JobDatabase(path)  # dispara migracion
+
+    with sqlite3.connect(path) as conn:
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT title_normalized, company_normalized FROM jobs WHERE fingerprint = ?",
+            ("fp1",),
+        ).fetchone()
+    assert row["title_normalized"] == "asistente administrativo"
+    assert row["company_normalized"] == "acme"
+
+
+def test_migrate_is_idempotent(tmp_path: Path) -> None:
+    path = tmp_path / "jobs.db"
+    JobDatabase(path)
+    JobDatabase(path)  # no debe lanzar

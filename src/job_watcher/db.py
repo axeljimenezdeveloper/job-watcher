@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import re
 import sqlite3
 import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from job_watcher.filters import normalize
 from job_watcher.models import JobOffer
 
 _SCHEMA = """
@@ -39,6 +41,24 @@ CREATE TABLE IF NOT EXISTS summary_log (
 CREATE INDEX IF NOT EXISTS idx_summary_log_sent_at ON summary_log(sent_at);
 """
 
+_PAREN_SUFFIX = re.compile(r"\([a-z]{1,2}\)", re.IGNORECASE)
+_LEGAL_SUFFIXES = re.compile(
+    r"\b(s\.?\s*a\.?\s*s?|c\.?\s*a\.?|srl|llc)\.?(?![a-zA-Z])",
+    re.IGNORECASE,
+)
+
+
+def normalize_for_dedup(text: str) -> str:
+    """Normaliza para comparar duplicados cross-portal.
+
+    - Quita sufijos parenteticos: "(a)", "(o)", "(os)", "(as)"
+    - Quita sufijos legales: "S.A.", "C.A.", "SRL", "LLC"
+    - Lowercase, sin tildes, espacios colapsados
+    """
+    text = _PAREN_SUFFIX.sub("", text)
+    text = _LEGAL_SUFFIXES.sub("", text)
+    return normalize(text)
+
 
 class JobDatabase:
     """Persistencia local thread-safe de ofertas con dedupe por fingerprint."""
@@ -52,6 +72,33 @@ class JobDatabase:
     def _initialize(self) -> None:
         with self._connect() as conn:
             conn.executescript(_SCHEMA)
+            self._migrate(conn)
+
+    @staticmethod
+    def _migrate(conn: sqlite3.Connection) -> None:
+        """Anade columnas *_normalized si faltan. Idempotente."""
+        cols = {row["name"] for row in conn.execute("PRAGMA table_info(jobs)").fetchall()}
+        if "title_normalized" not in cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN title_normalized TEXT")
+        if "company_normalized" not in cols:
+            conn.execute("ALTER TABLE jobs ADD COLUMN company_normalized TEXT")
+        # Backfill para filas existentes sin normalizar
+        pending = conn.execute(
+            "SELECT fingerprint, title, company FROM jobs "
+            "WHERE title_normalized IS NULL OR company_normalized IS NULL"
+        ).fetchall()
+        for row in pending:
+            conn.execute(
+                "UPDATE jobs SET title_normalized = ?, company_normalized = ? "
+                "WHERE fingerprint = ?",
+                (
+                    normalize_for_dedup(row["title"]),
+                    normalize_for_dedup(row["company"]),
+                    row["fingerprint"],
+                ),
+            )
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_title_norm ON jobs(title_normalized)")
+        conn.execute("CREATE INDEX IF NOT EXISTS idx_jobs_company_norm ON jobs(company_normalized)")
 
     def _connect(self) -> sqlite3.Connection:
         conn = sqlite3.connect(self._path, timeout=30.0, check_same_thread=False)
@@ -73,17 +120,22 @@ class JobDatabase:
         """Inserta o actualiza una oferta. Idempotente."""
         now = datetime.now(UTC).isoformat()
         published = offer.published_at.isoformat() if offer.published_at else None
+        title_norm = normalize_for_dedup(offer.title)
+        company_norm = normalize_for_dedup(offer.company)
         with self._write_lock, self._connect() as conn:
             conn.execute(
                 """
                 INSERT INTO jobs (fingerprint, portal, title, company, location,
-                                  url, external_id, published_at, raw_text, discovered_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                                  url, external_id, published_at, raw_text,
+                                  discovered_at, title_normalized, company_normalized)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(fingerprint) DO UPDATE SET
                     title = excluded.title,
                     company = excluded.company,
                     location = excluded.location,
-                    url = excluded.url
+                    url = excluded.url,
+                    title_normalized = excluded.title_normalized,
+                    company_normalized = excluded.company_normalized
                 """,
                 (
                     offer.fingerprint,
@@ -96,6 +148,8 @@ class JobDatabase:
                     published,
                     offer.raw_text,
                     now,
+                    title_norm,
+                    company_norm,
                 ),
             )
 
@@ -168,18 +222,21 @@ class JobDatabase:
     def find_recent_duplicate(self, title: str, company: str, days: int = 30) -> bool:
         """True si hay una oferta notificada similar en los ultimos N dias.
 
-        Compara title + company case-insensitive. Si company esta vacia,
-        retorna False (no se puede deduplicar con confianza).
+        Normaliza title y company (quita "(a)", "S.A.", tildes, mayusculas).
+        Si company normalizada esta vacia o es "confidencial", retorna False
+        (no deduplicar ofertas genericas: preferimos duplicar a perder).
         """
-        if not company.strip():
+        title_norm = normalize_for_dedup(title)
+        company_norm = normalize_for_dedup(company)
+        if not company_norm or company_norm == "confidencial":
             return False
         cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
         with self._connect() as conn:
             cur = conn.execute(
                 "SELECT 1 FROM jobs WHERE "
-                "LOWER(title) = LOWER(?) AND LOWER(company) = LOWER(?) "
+                "title_normalized = ? AND company_normalized = ? "
                 "AND notified_at IS NOT NULL AND notified_at >= ? "
                 "LIMIT 1",
-                (title, company, cutoff),
+                (title_norm, company_norm, cutoff),
             )
             return cur.fetchone() is not None

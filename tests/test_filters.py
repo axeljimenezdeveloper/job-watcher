@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from job_watcher.config import Profile
-from job_watcher.filters import ProfileFilter, _normalize, filter_offers
+from job_watcher.filters import ProfileFilter, filter_offers, normalize
 from job_watcher.models import JobOffer
 
 
@@ -36,9 +36,9 @@ def _offer(**overrides: object) -> JobOffer:
 
 
 def test_normalize_removes_accents_and_lowercases() -> None:
-    assert _normalize("Gestión de Inventario") == "gestion de inventario"
-    assert _normalize("  LOGÍSTICA  ") == "logistica"
-    assert _normalize("Añadir") == "anadir"
+    assert normalize("Gestión de Inventario") == "gestion de inventario"
+    assert normalize("  LOGÍSTICA  ") == "logistica"
+    assert normalize("Añadir") == "anadir"
 
 
 def test_match_by_keyword_in_title() -> None:
