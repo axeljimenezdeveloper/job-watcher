@@ -1,0 +1,15 @@
+app:
+    timezone: "America/Caracas"
+    log_level: "INFO"
+
+telegram:
+    parse_mode: "HTML"
+    disable_web_page_preview: true
+
+database:
+    path: "data/jobs.db"
+
+scraping:
+    timeout_seconds: 30
+    request_delay_seconds: 2
+    user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"

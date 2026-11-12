@@ -1,0 +1,21 @@
+profiles:
+    - name: "Analista de Inventarios - Nueva Esparta"
+      enabled: true
+      must_match_any:
+          - "analista de inventario"
+          - "inventario"
+          - "control de inventario"
+          - "gestion de inventario"
+          - "logistica"
+          - "almacen"
+      must_not_match:
+          - "senior"
+          - "gerente"
+          - "director"
+      locations_any:
+          - "Nueva Esparta"
+          - "Porlamar"
+          - "Margarita"
+      portals:
+          unmejorempleo: true
+          trabajo_org: true
