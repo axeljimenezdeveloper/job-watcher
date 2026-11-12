@@ -57,3 +57,7 @@ warn_unused_ignores = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --cov=job_watcher --cov-report=term-missing --cov-fail-under=80"
+
+[[tool.mypy.overrides]]
+module = ["tests.*"]
+disable_error_code = ["misc"]
