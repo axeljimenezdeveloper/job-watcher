@@ -44,6 +44,7 @@ profiles:
           buscojobs: true
           computrabajo: true
           empleate: true
+          mipleo: true
           trabajosdiarios: true
           trabajo_org: true
           unmejorempleo: true
@@ -82,6 +83,7 @@ profiles:
           buscojobs: true
           computrabajo: true
           empleate: true
+          mipleo: true
           trabajosdiarios: true
           trabajo_org: true
           unmejorempleo: true
@@ -121,6 +123,7 @@ profiles:
           buscojobs: true
           computrabajo: true
           empleate: true
+          mipleo: true
           trabajosdiarios: true
           trabajo_org: true
           unmejorempleo: true
@@ -161,6 +164,7 @@ profiles:
           buscojobs: true
           computrabajo: true
           empleate: true
+          mipleo: true
           trabajosdiarios: true
           trabajo_org: true
           unmejorempleo: true
