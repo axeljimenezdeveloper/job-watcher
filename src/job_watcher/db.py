@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 from job_watcher.models import JobOffer
@@ -24,6 +24,13 @@ CREATE TABLE IF NOT EXISTS jobs (
 );
 CREATE INDEX IF NOT EXISTS idx_jobs_portal ON jobs(portal);
 CREATE INDEX IF NOT EXISTS idx_jobs_notified ON jobs(notified_at);
+CREATE TABLE IF NOT EXISTS scrape_runs (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    portal        TEXT NOT NULL,
+    scraped_count INTEGER NOT NULL,
+    run_at        TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_scrape_runs_portal_time ON scrape_runs(portal, run_at);
 """
 
 
@@ -100,3 +107,37 @@ class JobDatabase:
             cur = conn.execute("SELECT COUNT(*) FROM jobs")
             row = cur.fetchone()
             return int(row[0]) if row else 0
+
+    def log_scrape_run(self, portal: str, count: int) -> None:
+        """Registra el numero de ofertas scrapeadas por portal."""
+        now = datetime.now(UTC).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO scrape_runs (portal, scraped_count, run_at) VALUES (?, ?, ?)",
+                (portal, count, now),
+            )
+
+    def get_scrape_baseline(self, portal: str, days: int = 7) -> tuple[int, float] | None:
+        """Promedio de scraped_count en los ultimos N dias.
+
+        Retorna None si hay menos de 2 runs (no hay suficiente historial).
+        """
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        with self._connect() as conn:
+            rows = conn.execute(
+                "SELECT scraped_count FROM scrape_runs WHERE portal = ? AND run_at >= ?",
+                (portal, cutoff),
+            ).fetchall()
+        if len(rows) < 2:
+            return None
+        counts = [int(r[0]) for r in rows]
+        return (len(counts), sum(counts) / len(counts))
+
+    def get_last_scraped(self, portal: str) -> int | None:
+        """Ultimo scraped_count registrado para portal, o None."""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT scraped_count FROM scrape_runs WHERE portal = ? ORDER BY id DESC LIMIT 1",
+                (portal,),
+            ).fetchone()
+        return int(row[0]) if row else None

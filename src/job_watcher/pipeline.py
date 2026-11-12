@@ -10,6 +10,7 @@ from job_watcher.config import Config, Profile
 from job_watcher.db import JobDatabase
 from job_watcher.filters import filter_offers
 from job_watcher.models import JobOffer
+from job_watcher.monitor import check_and_alert
 from job_watcher.notifier import TelegramError, TelegramNotifier
 from job_watcher.scrapers.base import run_multi_estado
 from job_watcher.scrapers.registry import get_scraper
@@ -67,6 +68,7 @@ def run_pipeline(config: Config) -> RunStats:
     logger.info("Portales activos: {}", sorted(active_portals))
 
     offers_by_portal = _scrape_all_portals(active_portals, config, stats)
+    _monitor_portals(offers_by_portal, db, notifier)
 
     for profile in config.profiles:
         if not profile.enabled:
@@ -166,3 +168,15 @@ def _apply_profile(
             len(matched),
             notified_here,
         )
+
+
+def _monitor_portals(
+    offers_by_portal: dict[str, list[JobOffer]],
+    db: JobDatabase,
+    notifier: TelegramNotifier,
+) -> None:
+    """Registra el conteo por portal y envia alertas si cae >50%."""
+    for portal_name, offers in offers_by_portal.items():
+        count = len(offers)
+        check_and_alert(portal_name, count, db, notifier)
+        db.log_scrape_run(portal_name, count)
