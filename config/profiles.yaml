@@ -4,10 +4,16 @@ profiles:
       must_match_any:
           - "analista de inventario"
           - "inventario"
+          - "inventarista"
           - "control de inventario"
           - "gestion de inventario"
           - "logistica"
           - "almacen"
+          - "almacenista"
+          - "deposito"
+          - "stock"
+          - "coordinador de almacen"
+          - "jefe de deposito"
       must_not_match:
           - "senior"
           - "gerente"
@@ -18,4 +24,4 @@ profiles:
           - "Margarita"
       portals:
           unmejorempleo: true
-          trabajo_org: true
+          trabajo_org: false
