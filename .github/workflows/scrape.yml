@@ -11,7 +11,7 @@ concurrency:
 
 jobs:
   scrape:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04   # pin explicito (evita migracion Ubuntu 26)
     timeout-minutes: 10
 
     steps:
@@ -31,7 +31,7 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: data/jobs.db
-          key: jobs-db-${{ github.run_id }}
+          key: jobs-db-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: jobs-db-
 
       - name: Create .env from secrets
@@ -47,4 +47,4 @@ jobs:
         uses: actions/cache/save@v4
         with:
           path: data/jobs.db
-          key: jobs-db-${{ github.run_id }}
+          key: jobs-db-${{ github.run_id }}-${{ github.run_attempt }}
