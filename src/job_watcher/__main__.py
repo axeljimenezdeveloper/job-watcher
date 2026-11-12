@@ -7,11 +7,11 @@ import sys
 from loguru import logger
 
 from job_watcher.config import load_config
-from job_watcher.notifier import TelegramError, TelegramNotifier
+from job_watcher.pipeline import run_pipeline
 
 
 def main() -> int:
-    """Entrypoint ejecutado con python -m job_watcher."""
+    """Entrypoint: python -m job_watcher."""
     config = load_config()
     logger.remove()
     logger.add(
@@ -26,26 +26,25 @@ def main() -> int:
     )
 
     logger.info(
-        "Configuracion cargada (perfiles: {})",
-        [p.name for p in config.profiles],
+        "Iniciando Job Watcher (perfiles: {})",
+        [p.name for p in config.profiles if p.enabled],
     )
 
-    notifier = TelegramNotifier(
-        bot_token=config.telegram.bot_token,
-        chat_id=config.telegram.chat_id,
-        parse_mode=config.telegram.parse_mode,
-        disable_web_page_preview=config.telegram.disable_web_page_preview,
+    stats = run_pipeline(config)
+
+    logger.info(
+        "Resumen: scrapeadas={} nuevas={} matched={} notificadas={} errores={}",
+        stats.scraped,
+        stats.new,
+        stats.matched,
+        stats.notified,
+        len(stats.errors),
     )
 
-    try:
-        notifier.send(
-            "Job Watcher - Sprint 0\nEl bot esta conectado y listo para recibir notificaciones."
-        )
-    except TelegramError:
-        logger.exception("No se pudo enviar el mensaje de prueba")
-        return 1
+    if stats.errors:
+        for err in stats.errors:
+            logger.warning("Error: {}", err)
 
-    logger.success("Mensaje de prueba enviado a Telegram")
     return 0
 
 

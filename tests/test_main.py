@@ -16,7 +16,7 @@ from job_watcher.config import (
     ScrapingConfig,
     TelegramConfig,
 )
-from job_watcher.notifier import TelegramError
+from job_watcher.pipeline import RunStats
 
 
 def _fake_config() -> Config:
@@ -32,23 +32,20 @@ def _fake_config() -> Config:
 def test_main_success(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(entry, "load_config", lambda: _fake_config())
 
-    mock_notifier = MagicMock()
-    mock_notifier.send.return_value = {"ok": True}
-    monkeypatch.setattr(entry, "TelegramNotifier", MagicMock(return_value=mock_notifier))
+    mock_stats = RunStats(scraped=3, new=1, matched=1, notified=1)
+    monkeypatch.setattr(entry, "run_pipeline", MagicMock(return_value=mock_stats))
 
     rc = entry.main()
 
     assert rc == 0
-    assert mock_notifier.send.call_count == 1
 
 
-def test_main_failure(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_main_with_errors_still_returns_zero(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(entry, "load_config", lambda: _fake_config())
 
-    mock_notifier = MagicMock()
-    mock_notifier.send.side_effect = TelegramError("boom")
-    monkeypatch.setattr(entry, "TelegramNotifier", MagicMock(return_value=mock_notifier))
+    mock_stats = RunStats(errors=["unmejorempleo: timeout"])
+    monkeypatch.setattr(entry, "run_pipeline", MagicMock(return_value=mock_stats))
 
     rc = entry.main()
 
-    assert rc == 1
+    assert rc == 0
