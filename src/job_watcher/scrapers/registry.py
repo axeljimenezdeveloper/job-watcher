@@ -9,6 +9,11 @@ from typing import cast
 from job_watcher.scrapers.base import BaseScraper
 
 
+def _load_buscojobs() -> type[BaseScraper]:
+    module = importlib.import_module("job_watcher.scrapers.buscojobs")
+    return cast(type[BaseScraper], module.BuscojobsScraper)
+
+
 def _load_computrabajo() -> type[BaseScraper]:
     module = importlib.import_module("job_watcher.scrapers.computrabajo")
     return cast(type[BaseScraper], module.ComputrabajoScraper)
@@ -30,6 +35,7 @@ def _load_unmejorempleo() -> type[BaseScraper]:
 
 
 SCRAPERS: dict[str, Callable[[], type[BaseScraper]]] = {
+    "buscojobs": _load_buscojobs,
     "computrabajo": _load_computrabajo,
     "trabajosdiarios": _load_trabajosdiarios,
     "trabajo_org": _load_trabajo_org,

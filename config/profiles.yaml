@@ -1,19 +1,80 @@
 profiles:
-    - name: "Analista de Inventarios - Nueva Esparta"
+    - name: "Frontend Developer (React/TS/RN)"
       enabled: true
       must_match_any:
-          - "analista de inventario"
-          - "inventario"
-          - "inventarista"
-          - "control de inventario"
-          - "gestion de inventario"
-          - "logistica"
-          - "almacen"
-          - "almacenista"
-          - "deposito"
-          - "stock"
-          - "coordinador de almacen"
-          - "jefe de deposito"
+          - "frontend"
+          - "front-end"
+          - "front end"
+          - "react"
+          - "typescript"
+          - "react native"
+          - "desarrollador web"
+          - "web developer"
+          - "javascript developer"
+          - "full stack"
+          - "fullstack"
+          - "programador"
+          - "developer"
+      must_not_match:
+          - "senior"
+          - "lead"
+          - "principal"
+          - "arquitecto"
+          - "architect"
+          - "10 años"
+          - "8 años"
+          - "5+ años"
+          - "5 años"
+          - "seniority"
+      locations_any: []
+      portals:
+          buscojobs: true
+          computrabajo: true
+          trabajosdiarios: true
+          trabajo_org: true
+          unmejorempleo: true
+
+    - name: "QA Engineer / Tester"
+      enabled: true
+      must_match_any:
+          - "qa"
+          - "tester"
+          - "testing"
+          - "quality assurance"
+          - "control de calidad"
+          - "automatizacion de pruebas"
+          - "automation tester"
+          - "analista de pruebas"
+          - "analista qa"
+      must_not_match:
+          - "senior"
+          - "lead"
+          - "gerente"
+          - "director"
+      locations_any: []
+      portals:
+          buscojobs: true
+          computrabajo: true
+          trabajosdiarios: true
+          trabajo_org: true
+          unmejorempleo: true
+
+    - name: "Soporte Tecnico / IT"
+      enabled: true
+      must_match_any:
+          - "soporte tecnico"
+          - "soporte técnico"
+          - "helpdesk"
+          - "help desk"
+          - "mesa de ayuda"
+          - "it support"
+          - "technical support"
+          - "asistente tecnico"
+          - "asistente técnico"
+          - "tecnico de sistemas"
+          - "técnico de sistemas"
+          - "administrador de sistemas"
+          - "sysadmin"
       must_not_match:
           - "senior"
           - "gerente"
@@ -22,7 +83,44 @@ profiles:
           - "Nueva Esparta"
           - "Porlamar"
           - "Margarita"
+          - "remoto"
+          - "remote"
       portals:
+          buscojobs: true
+          computrabajo: true
+          trabajosdiarios: true
+          trabajo_org: true
+          unmejorempleo: true
+
+    - name: "Asistente Tecnico / Admin Digital"
+      enabled: true
+      must_match_any:
+          - "asistente administrativo"
+          - "asistente tecnico"
+          - "asistente técnico"
+          - "asistente virtual"
+          - "analista de datos"
+          - "data entry"
+          - "e-commerce"
+          - "ecommerce"
+          - "shopify"
+          - "wordpress"
+          - "community manager"
+          - "social media manager"
+          - "digital marketing"
+          - "marketing digital"
+      must_not_match:
+          - "senior"
+          - "gerente"
+          - "director"
+      locations_any:
+          - "Nueva Esparta"
+          - "Porlamar"
+          - "Margarita"
+          - "remoto"
+          - "remote"
+      portals:
+          buscojobs: true
           computrabajo: true
           trabajosdiarios: true
           trabajo_org: true

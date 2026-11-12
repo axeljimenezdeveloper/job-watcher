@@ -41,3 +41,6 @@ data/
 diag_*.py
 diag_*.txt
 dump_*.html
+
+# Diagnostic HTML dumps
+diag_*.html
