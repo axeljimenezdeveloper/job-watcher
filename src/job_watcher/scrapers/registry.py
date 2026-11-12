@@ -10,18 +10,25 @@ from job_watcher.scrapers.base import BaseScraper
 
 
 def _load_unmejorempleo() -> type[BaseScraper]:
-    """Import perezoso: el modulo se resuelve en runtime, no en import-time."""
+    """Import perezoso del scraper de unmejorempleo.com.ve."""
     module = importlib.import_module("job_watcher.scrapers.unmejorempleo")
     return cast(type[BaseScraper], module.UnMejorEmpleoScraper)
 
 
 def _load_trabajo_org() -> type[BaseScraper]:
-    """Import perezoso del scraper de trabajo.org."""
+    """Import perezoso del scraper de ve.trabajo.org."""
     module = importlib.import_module("job_watcher.scrapers.trabajo_org")
     return cast(type[BaseScraper], module.TrabajoOrgScraper)
 
 
+def _load_computrabajo() -> type[BaseScraper]:
+    """Import perezoso del scraper de ve.computrabajo.com."""
+    module = importlib.import_module("job_watcher.scrapers.computrabajo")
+    return cast(type[BaseScraper], module.ComputrabajoScraper)
+
+
 SCRAPERS: dict[str, Callable[[], type[BaseScraper]]] = {
+    "computrabajo": _load_computrabajo,
     "trabajo_org": _load_trabajo_org,
     "unmejorempleo": _load_unmejorempleo,
 }

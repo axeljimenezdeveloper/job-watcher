@@ -23,5 +23,6 @@ profiles:
           - "Porlamar"
           - "Margarita"
       portals:
+          computrabajo: true
           unmejorempleo: true
           trabajo_org: true
