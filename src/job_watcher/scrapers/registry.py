@@ -19,6 +19,11 @@ def _load_computrabajo() -> type[BaseScraper]:
     return cast(type[BaseScraper], module.ComputrabajoScraper)
 
 
+def _load_empleate() -> type[BaseScraper]:
+    module = importlib.import_module("job_watcher.scrapers.empleate")
+    return cast(type[BaseScraper], module.EmpleateScraper)
+
+
 def _load_trabajosdiarios() -> type[BaseScraper]:
     module = importlib.import_module("job_watcher.scrapers.trabajosdiarios")
     return cast(type[BaseScraper], module.TrabajosDiariosScraper)
@@ -37,6 +42,7 @@ def _load_unmejorempleo() -> type[BaseScraper]:
 SCRAPERS: dict[str, Callable[[], type[BaseScraper]]] = {
     "buscojobs": _load_buscojobs,
     "computrabajo": _load_computrabajo,
+    "empleate": _load_empleate,
     "trabajosdiarios": _load_trabajosdiarios,
     "trabajo_org": _load_trabajo_org,
     "unmejorempleo": _load_unmejorempleo,
