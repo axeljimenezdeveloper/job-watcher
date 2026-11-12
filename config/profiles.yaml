@@ -24,5 +24,6 @@ profiles:
           - "Margarita"
       portals:
           computrabajo: true
-          unmejorempleo: true
+          trabajosdiarios: true
           trabajo_org: true
+          unmejorempleo: true
