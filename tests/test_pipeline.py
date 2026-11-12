@@ -196,3 +196,50 @@ def test_format_offer_includes_remote_badge() -> None:
     offer = _offer("1", title="Dev remoto")
     text = p.format_offer(offer, "QA Engineer / Tester")
     assert "🏠 Remoto" in text
+
+
+def test_pipeline_skips_cross_portal_duplicate(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """Dos portales publican la misma oferta: solo una se notifica.
+
+    Requiere company no vacia (el dedup cross-portal no aplica sin empresa).
+    """
+    config = _config(tmp_path)
+
+    # Ambas ofertas comparten title + company para que el dedup aplique.
+    dup_offer = JobOffer(
+        portal="unmejorempleo",
+        title="Analista de Inventarios",
+        company="ACME Corp",
+        location="Porlamar",
+        url="https://x/unmejorempleo",
+        external_id="1",
+        published_at=datetime(2026, 11, 1, tzinfo=UTC),
+    )
+    dup_offer_other = JobOffer(
+        portal="computrabajo",
+        title="Analista de Inventarios",
+        company="ACME Corp",
+        location="Mariño",
+        url="https://x/computrabajo",
+        external_id="999",
+        published_at=datetime(2026, 11, 1, tzinfo=UTC),
+    )
+
+    fake_scraper_instance = MagicMock()
+    fake_scraper_instance.portal = "unmejorempleo"
+    fake_scraper_instance.ESTADOS = {"nueva-esparta": "foo"}
+    fake_scraper_instance.BASE_URL = "https://x/"
+    fake_scraper_instance.run.return_value = [dup_offer, dup_offer_other]
+    fake_scraper_cls = MagicMock(return_value=fake_scraper_instance)
+    monkeypatch.setattr(p, "get_scraper", MagicMock(return_value=fake_scraper_cls))
+
+    fake_notifier = MagicMock()
+    monkeypatch.setattr(p, "TelegramNotifier", MagicMock(return_value=fake_notifier))
+
+    stats = p.run_pipeline(config)
+
+    # Solo 1 notificada (la primera), la segunda se dedupea
+    assert stats.notified == 1
+    assert fake_notifier.send.call_count == 1

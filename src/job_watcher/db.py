@@ -164,3 +164,22 @@ class JobDatabase:
                 (cutoff,),
             ).fetchone()
         return row is not None
+
+    def find_recent_duplicate(self, title: str, company: str, days: int = 30) -> bool:
+        """True si hay una oferta notificada similar en los ultimos N dias.
+
+        Compara title + company case-insensitive. Si company esta vacia,
+        retorna False (no se puede deduplicar con confianza).
+        """
+        if not company.strip():
+            return False
+        cutoff = (datetime.now(UTC) - timedelta(days=days)).isoformat()
+        with self._connect() as conn:
+            cur = conn.execute(
+                "SELECT 1 FROM jobs WHERE "
+                "LOWER(title) = LOWER(?) AND LOWER(company) = LOWER(?) "
+                "AND notified_at IS NOT NULL AND notified_at >= ? "
+                "LIMIT 1",
+                (title, company, cutoff),
+            )
+            return cur.fetchone() is not None

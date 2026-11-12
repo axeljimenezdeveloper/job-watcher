@@ -207,8 +207,20 @@ def _apply_profile(
         stats.matched += len(matched)
 
         notified_here = 0
+        dupes_here = 0
         for offer in matched:
             if not db.is_new(offer):
+                continue
+            if db.find_recent_duplicate(offer.title, offer.company):
+                logger.debug(
+                    "[{}] duplicado cross-portal (skip): {} | {}",
+                    portal_name,
+                    offer.title,
+                    offer.company,
+                )
+                db.save(offer)
+                db.mark_notified(offer)
+                dupes_here += 1
                 continue
             stats.new += 1
             db.save(offer)
@@ -223,11 +235,12 @@ def _apply_profile(
             notified_here += 1
 
         logger.info(
-            "[{}] perfil={} matched={} notificadas={}",
+            "[{}] perfil={} matched={} notificadas={} dupes={}",
             portal_name,
             profile.name,
             len(matched),
             notified_here,
+            dupes_here,
         )
 
 

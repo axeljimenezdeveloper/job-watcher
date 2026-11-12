@@ -28,11 +28,21 @@ jobs:
           pip install -e .
 
       - name: Restore job database from cache
+        id: cache-restore
         uses: actions/cache/restore@v4
         with:
           path: data/jobs.db
           key: jobs-db-${{ github.run_id }}-${{ github.run_attempt }}
           restore-keys: jobs-db-
+
+      - name: Restore job database from artifact (fallback)
+        if: steps.cache-restore.outputs.cache-hit != 'true'
+        uses: actions/download-artifact@v4
+        with:
+          pattern: jobs-db-*
+          merge-multiple: true
+          path: data/
+        continue-on-error: true
 
       - name: Create .env from secrets
         run: |
@@ -48,3 +58,18 @@ jobs:
         with:
           path: data/jobs.db
           key: jobs-db-${{ github.run_id }}-${{ github.run_attempt }}
+
+      - name: Upload job database as artifact (backup)
+        if: always() && hashFiles('data/jobs.db') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: jobs-db-${{ github.run_id }}
+          path: data/jobs.db
+          retention-days: 90
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          curl -s -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
+            -d chat_id="${{ secrets.TELEGRAM_CHAT_ID }}" \
+            -d text="Job Watcher fallo. Run: ${{ github.run_id }}"

@@ -136,3 +136,42 @@ def test_was_summary_sent_since_true_recent(tmp_path: Path) -> None:
     db = JobDatabase(tmp_path / "jobs.db")
     db.log_summary_sent()
     assert db.was_summary_sent_since(hours=20) is True
+
+
+def test_find_recent_duplicate_same_title_company(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(external_id="1", title="Asistente Admin", company="ACME")
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("Asistente Admin", "ACME") is True
+
+
+def test_find_recent_duplicate_case_insensitive(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(external_id="1", title="Asistente Admin", company="ACME")
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("ASISTENTE ADMIN", "acme") is True
+
+
+def test_find_recent_duplicate_different_title(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(external_id="1", title="Asistente Admin", company="ACME")
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("Contador", "ACME") is False
+
+
+def test_find_recent_duplicate_empty_company_returns_false(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(external_id="1", title="Asistente Admin", company="ACME")
+    db.save(offer)
+    db.mark_notified(offer)
+    assert db.find_recent_duplicate("Asistente Admin", "") is False
+
+
+def test_find_recent_duplicate_not_notified_returns_false(tmp_path: Path) -> None:
+    db = JobDatabase(tmp_path / "jobs.db")
+    offer = _offer(external_id="1", title="Asistente Admin", company="ACME")
+    db.save(offer)  # guardada pero NO notificada
+    assert db.find_recent_duplicate("Asistente Admin", "ACME") is False
