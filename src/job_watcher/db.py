@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+import threading
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
@@ -35,11 +36,12 @@ CREATE INDEX IF NOT EXISTS idx_scrape_runs_portal_time ON scrape_runs(portal, ru
 
 
 class JobDatabase:
-    """Persistencia local de ofertas con dedupe por fingerprint."""
+    """Persistencia local thread-safe de ofertas con dedupe por fingerprint."""
 
     def __init__(self, path: Path) -> None:
         self._path = path
         self._path.parent.mkdir(parents=True, exist_ok=True)
+        self._write_lock = threading.Lock()
         self._initialize()
 
     def _initialize(self) -> None:
@@ -47,7 +49,7 @@ class JobDatabase:
             conn.executescript(_SCHEMA)
 
     def _connect(self) -> sqlite3.Connection:
-        conn = sqlite3.connect(self._path)
+        conn = sqlite3.connect(self._path, timeout=30.0, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         conn.execute("PRAGMA journal_mode = WAL")
         conn.execute("PRAGMA foreign_keys = ON")
@@ -66,18 +68,18 @@ class JobDatabase:
         """Inserta o actualiza una oferta. Idempotente."""
         now = datetime.now(UTC).isoformat()
         published = offer.published_at.isoformat() if offer.published_at else None
-        with self._connect() as conn:
+        with self._write_lock, self._connect() as conn:
             conn.execute(
                 """
-                INSERT INTO jobs (fingerprint, portal, title, company, location,
-                                  url, external_id, published_at, raw_text, discovered_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT(fingerprint) DO UPDATE SET
-                    title = excluded.title,
-                    company = excluded.company,
-                    location = excluded.location,
-                    url = excluded.url
-                """,
+                    INSERT INTO jobs (fingerprint, portal, title, company, location,
+                                      url, external_id, published_at, raw_text, discovered_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    ON CONFLICT(fingerprint) DO UPDATE SET
+                        title = excluded.title,
+                        company = excluded.company,
+                        location = excluded.location,
+                        url = excluded.url
+                    """,
                 (
                     offer.fingerprint,
                     offer.portal,
@@ -95,7 +97,7 @@ class JobDatabase:
     def mark_notified(self, offer: JobOffer) -> None:
         """Marca la oferta como notificada al usuario."""
         now = datetime.now(UTC).isoformat()
-        with self._connect() as conn:
+        with self._write_lock, self._connect() as conn:
             conn.execute(
                 "UPDATE jobs SET notified_at = ? WHERE fingerprint = ?",
                 (now, offer.fingerprint),
@@ -111,7 +113,7 @@ class JobDatabase:
     def log_scrape_run(self, portal: str, count: int) -> None:
         """Registra el numero de ofertas scrapeadas por portal."""
         now = datetime.now(UTC).isoformat()
-        with self._connect() as conn:
+        with self._write_lock, self._connect() as conn:
             conn.execute(
                 "INSERT INTO scrape_runs (portal, scraped_count, run_at) VALUES (?, ?, ?)",
                 (portal, count, now),

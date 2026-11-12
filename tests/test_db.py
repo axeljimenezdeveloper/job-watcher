@@ -77,3 +77,33 @@ def test_db_persists_across_instances(tmp_path: Path) -> None:
     second = JobDatabase(path)
     assert second.is_new(offer) is False
     assert second.count() == 1
+
+
+def test_concurrent_saves_are_safe(tmp_path: Path) -> None:
+    """10 threads guardando ofertas simultaneamente: sin perdida, sin race."""
+    import threading
+
+    db = JobDatabase(tmp_path / "jobs.db")
+    offers = [_offer(external_id=str(i)) for i in range(10)]
+    threads = [threading.Thread(target=db.save, args=(offer,)) for offer in offers]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    assert db.count() == 10
+
+
+def test_concurrent_log_scrape_runs(tmp_path: Path) -> None:
+    """5 threads loggeando scrape_runs: los 5 quedan persistidos."""
+    import threading
+
+    db = JobDatabase(tmp_path / "jobs.db")
+    threads = [
+        threading.Thread(target=db.log_scrape_run, args=(f"portal_{i}", i)) for i in range(5)
+    ]
+    for t in threads:
+        t.start()
+    for t in threads:
+        t.join()
+    for i in range(5):
+        assert db.get_last_scraped(f"portal_{i}") == i

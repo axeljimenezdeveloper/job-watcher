@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field
 
 from loguru import logger
@@ -14,6 +15,8 @@ from job_watcher.monitor import check_and_alert
 from job_watcher.notifier import TelegramError, TelegramNotifier
 from job_watcher.scrapers.base import run_multi_estado
 from job_watcher.scrapers.registry import get_scraper
+
+MAX_WORKERS = 3
 
 
 @dataclass
@@ -54,7 +57,7 @@ def format_summary(stats: RunStats) -> str:
 
 
 def run_pipeline(config: Config) -> RunStats:
-    """Scrapea cada portal UNA vez, luego aplica cada perfil sobre cache."""
+    """Scrapea cada portal UNA vez (en paralelo), luego aplica cada perfil."""
     stats = RunStats()
     db = JobDatabase(config.database.path)
     notifier = TelegramNotifier(
@@ -90,44 +93,69 @@ def _collect_active_portals(profiles: list[Profile]) -> set[str]:
     return portals
 
 
+def _scrape_one_portal(portal_name: str, config: Config) -> tuple[str, list[JobOffer], list[str]]:
+    """Scrapea un solo portal. Retorna (name, offers, errors locales)."""
+    errors: list[str] = []
+    try:
+        scraper_cls = get_scraper(portal_name)
+    except KeyError as exc:
+        errors.append(f"{portal_name}: {exc}")
+        return (portal_name, [], errors)
+
+    scraper = scraper_cls(
+        timeout_seconds=config.scraping.timeout_seconds,
+        user_agent=config.scraping.user_agent,
+    )
+
+    try:
+        offers = run_multi_estado(
+            scraper,
+            config.scraping.estados,
+            on_error=errors.append,
+        )
+    except Exception as exc:
+        errors.append(f"{portal_name}: {exc!r}")
+        logger.exception("[{}] fallo al scrapear", portal_name)
+        return (portal_name, [], errors)
+
+    return (portal_name, offers, errors)
+
+
 def _scrape_all_portals(
     portals: set[str],
     config: Config,
     stats: RunStats,
 ) -> dict[str, list[JobOffer]]:
-    """Scrapea cada portal una sola vez a traves de todos los estados."""
+    """Scrapea todos los portales en paralelo (max MAX_WORKERS simultaneos)."""
     result: dict[str, list[JobOffer]] = {}
-    for portal_name in sorted(portals):
-        try:
-            scraper_cls = get_scraper(portal_name)
-        except KeyError as exc:
-            stats.errors.append(f"{portal_name}: {exc}")
-            logger.error("Scraper no disponible: {}", exc)
-            result[portal_name] = []
-            continue
+    sorted_portals = sorted(portals)
 
-        scraper = scraper_cls(
-            timeout_seconds=config.scraping.timeout_seconds,
-            user_agent=config.scraping.user_agent,
-        )
-
-        try:
-            offers = run_multi_estado(
-                scraper,
-                config.scraping.estados,
-                on_error=stats.errors.append,
-            )
-        except Exception as exc:
-            stats.errors.append(f"{portal_name}: {exc!r}")
-            logger.exception("[{}] fallo al scrapear", portal_name)
-            result[portal_name] = []
-            continue
-
-        result[portal_name] = offers
-        stats.scraped += len(offers)
-        logger.info("[{}] total scrapeado: {} ofertas", portal_name, len(offers))
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = {
+            executor.submit(_scrape_one_portal, name, config): name for name in sorted_portals
+        }
+        for future in as_completed(futures):
+            portal_name, offers, errors = future.result()
+            for err in errors:
+                stats.errors.append(err)
+                logger.error("Error scraping: {}", err)
+            result[portal_name] = offers
+            stats.scraped += len(offers)
+            logger.info("[{}] total scrapeado: {} ofertas", portal_name, len(offers))
 
     return result
+
+
+def _monitor_portals(
+    offers_by_portal: dict[str, list[JobOffer]],
+    db: JobDatabase,
+    notifier: TelegramNotifier,
+) -> None:
+    """Registra el conteo por portal y envia alertas si cae >50%."""
+    for portal_name, offers in offers_by_portal.items():
+        count = len(offers)
+        check_and_alert(portal_name, count, db, notifier)
+        db.log_scrape_run(portal_name, count)
 
 
 def _apply_profile(
@@ -168,15 +196,3 @@ def _apply_profile(
             len(matched),
             notified_here,
         )
-
-
-def _monitor_portals(
-    offers_by_portal: dict[str, list[JobOffer]],
-    db: JobDatabase,
-    notifier: TelegramNotifier,
-) -> None:
-    """Registra el conteo por portal y envia alertas si cae >50%."""
-    for portal_name, offers in offers_by_portal.items():
-        count = len(offers)
-        check_and_alert(portal_name, count, db, notifier)
-        db.log_scrape_run(portal_name, count)
